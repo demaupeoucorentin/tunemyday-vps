@@ -111,6 +111,17 @@ app.post('/generate-checkout', (req, res) => {
   </html>`
                 });
                 console.log('Mail final envoyé, fin du traitement');
+
+                const { error: updateError } = await supabase
+                    .from('music_previews')
+                    .update({ checkout_success: true })
+                    .eq('preview_id', previewId);
+                if (updateError) {
+                    console.log('Erreur mise à jour champ "checkout_success" :', updateError);
+                } else {
+                    console.log('Champ "checkout_success" mis à jour à true avec succès');
+                }
+
                 return;
             }
         } else {
@@ -203,11 +214,13 @@ app.post('/generate-checkout', (req, res) => {
                 return;
             }
 
+            const generatedPreviewId = uuidv4();
+
             console.log('Insertion des pistes générées en base');
             const records = audioResults.map(item => ({
                 id: uuidv4(),
                 email,
-                preview_id: previewId,
+                preview_id: generatedPreviewId,
                 task_id: genData.taskId,
                 parent_music_id: genData.parentMusicId,
                 param: genData.param,
@@ -226,13 +239,14 @@ app.post('/generate-checkout', (req, res) => {
                 tags: item.tags,
                 duration: Math.round(item.duration),
                 created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                checkout_success: true
             }));
             await supabase.from('music_previews').insert(records);
             console.log('Données insérées');
 
             console.log('Envoi du mail de la musique complète');
-            const fullMusicUrl = `${req.protocol}://${req.get('host')}/music/full/${previewId}`;
+            const fullMusicUrl = `${req.protocol}://${req.get('host')}/music/full/${generatedPreviewId}`;
             await resend.emails.send({
                 from: 'TuneMyDay <noreply@tunemyday.fr>',
                 to: [email],
