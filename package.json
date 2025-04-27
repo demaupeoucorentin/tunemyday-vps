@@ -13,6 +13,8 @@
     "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "mjml": "^4.15.3",
+    "node-cron": "^3.0.3",
     "node-fetch": "^2.7.0",
     "resend": "^4.4.1",
     "uuidv4": "^6.2.13"

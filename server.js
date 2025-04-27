@@ -43,6 +43,8 @@ app.post('/generate-checkout', (req, res) => {
     console.log('Réponse envoyée au client, traitement asynchrone démarré');
 
     (async () => {
+        let idToUpdate = previewId;
+
         if (previewId) {
             console.log('Connexion à Supabase');
             const { data: previewData, error: previewError } = await supabase
@@ -52,8 +54,9 @@ app.post('/generate-checkout', (req, res) => {
                 .single();
             if (previewError) {
                 console.log('Échec récupération des infos audio :', previewError);
+            } else {
+                console.log('previewData récupéré');
             }
-            console.log('previewData récupéré');
 
             console.log('Initialisation Resend');
             const resend = new Resend(process.env.RESEND_API_KEY);
@@ -64,26 +67,26 @@ app.post('/generate-checkout', (req, res) => {
                 to: [email],
                 subject: '📥 Confirmation de votre commande',
                 html: `<!DOCTYPE html>
-  <html>
-  <head><meta charset="utf-8"><title>Confirmation de commande</title></head>
-  <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f6f9fc;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #1E1E3F; margin-bottom: 10px;">Merci pour votre achat !</h1>
-      </div>
-      <div style="background: linear-gradient(135deg, #FEC260 0%, #F5564E 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-        <p style="color: #666; font-size: 16px; line-height: 1.5;">Nous préparons votre musique personnalisée.</p>
-      </div>
-      <div style="text-align: center; color: #666; font-size: 14px;">
-        <p style="margin-top: 20px;">À très vite sur <a href="https://www.tunemyday.fr">TuneMyDay</a> !</p>
-      </div>
+<html>
+<head><meta charset="utf-8"><title>Confirmation de commande</title></head>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f6f9fc;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <div style="text-align: center; margin-bottom: 30px;">
+      <h1 style="color: #1E1E3F; margin-bottom: 10px;">Merci pour votre achat !</h1>
     </div>
-  </body>
-  </html>`
+    <div style="background: linear-gradient(135deg, #FEC260 0%, #F5564E 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
+      <p style="color: #666; font-size: 16px; line-height: 1.5;">Nous préparons votre musique personnalisée.</p>
+    </div>
+    <div style="text-align: center; color: #666; font-size: 14px;">
+      <p style="margin-top: 20px;">À très vite sur <a href="https://www.tunemyday.fr" target="_blank" style="color:#F5564E;text-decoration:none">TuneMyDay</a> !</p>
+    </div>
+  </div>
+</body>
+</html>`
             });
             console.log('Mail de confirmation envoyé');
 
-            if (previewData.audio_url) {
+            if (previewData && previewData.audio_url) {
                 console.log('Audio déjà disponible, envoi du mail final');
                 const fullMusicUrl = `https://www.tunemyday.fr/music/full/${previewId}`;
                 await resend.emails.send({
@@ -91,38 +94,26 @@ app.post('/generate-checkout', (req, res) => {
                     to: [email],
                     subject: '🎵 Votre chanson complète est prête !',
                     html: `<!DOCTYPE html>
-  <html>
-  <head><meta charset="utf-8"><title>Votre chanson complète est prête !</title></head>
-  <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f6f9fc;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #1E1E3F; margin-bottom: 10px;">Votre chanson est prête ! 🎵</h1>
-        <p style="color: #666; font-size: 16px; line-height: 1.5;">Nous avons créé une chanson unique, rien que pour vous.</p>
-      </div>
-      <div style="background: linear-gradient(135deg, #FEC260 0%, #F5564E 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-        <h2 style="color: white; margin-bottom: 15px;">${previewData.title}</h2>
-        <a href="${fullMusicUrl}" style="display: inline-block; background-color: white; color: #F5564E; text-decoration: none; padding: 15px 30px; border-radius: 25px; font-weight: bold; font-size: 16px;">Écouter mon extrait gratuit</a>
-      </div>
-      <div style="text-align: center; color: #666; font-size: 14px;">
-        <p style="margin-top: 20px;">À très vite sur <a href="https://www.tunemyday.fr">TuneMyDay</a> !</p>
-      </div>
+<html>
+<head><meta charset="utf-8"><title>Votre chanson complète est prête !</title></head>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f6f9fc;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <div style="text-align: center; margin-bottom: 30px;">
+      <h1 style="color: #1E1E3F; margin-bottom: 10px;">Votre chanson est prête ! 🎵</h1>
+      <p style="color: #666; font-size: 16px; line-height: 1.5;">Nous avons créé une chanson unique, rien que pour vous.</p>
     </div>
-  </body>
-  </html>`
+    <div style="background: linear-gradient(135deg, #FEC260 0%, #F5564E 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
+      <h2 style="color: white; margin-bottom: 15px;">${previewData.title}</h2>
+      <a href="${fullMusicUrl}" style="display: inline-block; background-color: white; color: #F5564E; text-decoration: none; padding: 15px 30px; border-radius: 25px; font-weight: bold; font-size: 16px;">Écouter mon extrait gratuit</a>
+    </div>
+    <div style="text-align: center; color: #666; font-size: 14px;">
+      <p style="margin-top: 20px;">À très vite sur <a href="https://www.tunemyday.fr" target="_blank" style="color:#F5564E;text-decoration:none">TuneMyDay</a> !</p>
+    </div>
+  </div>
+</body>
+</html>`
                 });
-                console.log('Mail final envoyé, fin du traitement');
-
-                const { error: updateError } = await supabase
-                    .from('music_previews')
-                    .update({ checkout_success: true })
-                    .eq('preview_id', previewId);
-                if (updateError) {
-                    console.log('Erreur mise à jour champ "checkout_success" :', updateError);
-                } else {
-                    console.log('Champ "checkout_success" mis à jour à true avec succès');
-                }
-
-                return;
+                console.log('Mail final envoyé');
             }
         } else {
             console.log('Pas d’audio existant, génération via APIBox');
@@ -139,29 +130,23 @@ app.post('/generate-checkout', (req, res) => {
                 {
                     body: {
                         title,
-                        event_type: event_type ? event_type : null,
-                        music_style: music_style,
+                        event_type: event_type || null,
+                        music_style,
                         description: `${description} Il faut que la chanson reflète les émotions suivantes: ${selected_emotions}` || null,
                         negative_tags: negative_tags || null
                     }
                 }
             );
-            const lyrics = lyricsData.lyrics;
-            const prompt = lyrics;
-
-            console.log('Génération des paroles :', { prompt, style: music_style, title });
-
-            if (!prompt) {
+            const lyrics = lyricsData?.lyrics;
+            if (!lyrics) {
                 console.log('Aucune parole générée, arrêt du traitement');
                 return;
             }
+            console.log('Paroles générées :', lyrics);
 
-            console.log('Paroles générées :', prompt);
             console.log('Préparation de l’appel à APIBox');
-
             const apiboxKey = process.env.APIBOX_API_KEY;
             const callbackUrl = `https://www.tunemyday.fr/api/callback/audio`;
-            console.log('Paramètres APIBox :', { prompt, style: music_style, title });
 
             const genRes = await fetch('https://apibox.erweima.ai/api/v1/generate', {
                 method: 'POST',
@@ -169,7 +154,15 @@ app.post('/generate-checkout', (req, res) => {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${apiboxKey}`
                 },
-                body: JSON.stringify({ prompt, style: music_style, title, customMode: true, instrumental: false, model: 'V4', callBackUrl: callbackUrl })
+                body: JSON.stringify({
+                    prompt: lyrics,
+                    style: music_style,
+                    title,
+                    customMode: true,
+                    instrumental: false,
+                    model: 'V4',
+                    callBackUrl: callbackUrl
+                })
             });
             if (!genRes.ok) {
                 console.log('Erreur APIBox init, statut :', genRes.status);
@@ -183,10 +176,10 @@ app.post('/generate-checkout', (req, res) => {
             const maxAttempts = 60;
             while (!audioResults && attempts < maxAttempts) {
                 await new Promise(r => setTimeout(r, 1000));
-                const recRes = await fetch(`https://apibox.erweima.ai/api/v1/generate/record-info?taskId=${genData.taskId}`, {
-                    method: 'GET',
-                    headers: { Authorization: `Bearer ${apiboxKey}` }
-                });
+                const recRes = await fetch(
+                    `https://apibox.erweima.ai/api/v1/generate/record-info?taskId=${genData.taskId}`,
+                    { method: 'GET', headers: { Authorization: `Bearer ${apiboxKey}` } }
+                );
                 if (!recRes.ok) {
                     console.log('Erreur record-info, statut :', recRes.status);
                     attempts++;
@@ -203,7 +196,6 @@ app.post('/generate-checkout', (req, res) => {
                     break;
                 }
                 if (recData.status === 'ERROR') {
-                    console.log('Statut recData :', recData.status);
                     console.log('Erreur dans recData pour taskId :', genData.taskId);
                     break;
                 }
@@ -215,6 +207,7 @@ app.post('/generate-checkout', (req, res) => {
             }
 
             const generatedPreviewId = uuidv4();
+            idToUpdate = generatedPreviewId;
 
             console.log('Insertion des pistes générées en base');
             const records = audioResults.map(item => ({
@@ -228,8 +221,8 @@ app.post('/generate-checkout', (req, res) => {
                 status: genData.status,
                 type: genData.type,
                 operation_type: genData.operationType,
-                error_code: genData.errorCode ? genData.errorCode : 0,
-                error_message: genData.errorMessage ? genData.errorMessage : "",
+                error_code: genData.errorCode || 0,
+                error_message: genData.errorMessage || "",
                 audio_url: item.audioUrl,
                 stream_audio_url: item.streamAudioUrl,
                 image_url: item.imageUrl,
@@ -239,8 +232,7 @@ app.post('/generate-checkout', (req, res) => {
                 tags: item.tags,
                 duration: Math.round(item.duration),
                 created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                checkout_success: true
+                updated_at: new Date().toISOString()
             }));
             await supabase.from('music_previews').insert(records);
             console.log('Données insérées');
@@ -252,26 +244,38 @@ app.post('/generate-checkout', (req, res) => {
                 to: [email],
                 subject: '🎵 Votre chanson complète est prête !',
                 html: `<!DOCTYPE html>
-  <html>
-  <head><meta charset="utf-8"><title>Votre chanson complète est prête !</title></head>
-  <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f6f9fc;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #1E1E3F; margin-bottom: 10px;">Votre chanson est prête ! 🎵</h1>
-        <p style="color: #666; font-size: 16px; line-height: 1.5;">Nous avons créé une chanson unique, rien que pour vous.</p>
-      </div>
-      <div style="background: linear-gradient(135deg, #FEC260 0%, #F5564E 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-        <h2 style="color: white; margin-bottom: 15px;">${title}</h2>
-        <a href="${fullMusicUrl}" style="display: inline-block; background-color: white; color: #F5564E; text-decoration: none; padding: 15px 30px; border-radius: 25px; font-weight: bold; font-size: 16px;">Écouter mon extrait gratuit</a>
-      </div>
-      <div style="text-align: center; color: #666; font-size: 14px;">
-        <p style="margin-top: 20px;">À très vite sur <a href="https://www.tunemyday.fr">TuneMyDay</a> !</p>
-      </div>
+<html>
+<head><meta charset="utf-8"><title>Votre chanson complète est prête !</title></head>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f6f9fc;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <div style="text-align: center; margin-bottom: 30px;">
+      <h1 style="color: #1E1E3F; margin-bottom: 10px;">Votre chanson est prête ! 🎵</h1>
+      <p style="color: #666; font-size: 16px; line-height: 1.5;">Nous avons créé une chanson unique, rien que pour vous.</p>
     </div>
-  </body>
-  </html>`
+    <div style="background: linear-gradient(135deg, #FEC260 0%, #F5564E 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
+      <h2 style="color: white; margin-bottom: 15px;">${title}</h2>
+      <a href="${fullMusicUrl}" style="display: inline-block; background-color: white; color: #F5564E; text-decoration: none; padding: 15px 30px; border-radius: 25px; font-weight: bold; font-size: 16px;">Écouter mon extrait gratuit</a>
+    </div>
+    <div style="text-align: center; color: #666; font-size: 14px;">
+      <p style="margin-top: 20px;">À très vite sur <a href="https://www.tunemyday.fr" target="_blank" style="color:#F5564E;text-decoration:none">TuneMyDay</a> !</p>
+    </div>
+  </div>
+</body>
+</html>`
             });
             console.log('Mail final envoyé, traitement terminé');
+        }
+
+        if (idToUpdate) {
+            const { error: updateError } = await supabase
+                .from('music_previews')
+                .update({ checkout_success: true })
+                .eq('preview_id', idToUpdate);
+            if (updateError) {
+                console.log('Erreur mise à jour champ "checkout_success" pour tous les records :', updateError);
+            } else {
+                console.log(`Champ "checkout_success" mis à jour à true pour tous les enregistrements avec preview_id ${idToUpdate}`);
+            }
         }
     })();
 });
@@ -405,20 +409,20 @@ app.post('/generate-music', (req, res) => {
 <html>
 <head><meta charset="utf-8"><title>Votre extrait musical est prêt !</title></head>
 <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f6f9fc;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-    <div style="text-align: center; margin-bottom: 30px;">
-      <h1 style="color: #1E1E3F; margin-bottom: 10px;">Votre extrait est prêt ! 🎵</h1>
-      <p style="color: #666; font-size: 16px; line-height: 1.5;">Nous avons créé une chanson unique pour vous.</p>
+    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #1E1E3F; margin-bottom: 10px;">Votre extrait est prêt ! 🎵</h1>
+            <p style="color: #666; font-size: 16px; line-height: 1.5;">Nous avons créé une chanson unique pour vous.</p>
+        </div>
+        <div style="background: linear-gradient(135deg, #FEC260 0%, #F5564E 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
+            <h2 style="color: white; margin-bottom: 15px;">${title}</h2>
+            <a href="${fullMusicUrl}" style="display: inline-block; background-color: white; color: #F5564E; text-decoration: none; padding: 15px 30px; border-radius: 25px; font-weight: bold; font-size: 16px;">Écouter mon extrait gratuit</a>
+        </div>
+        <div style="text-align: center; color: #666; font-size: 14px;">
+            <p>Un extrait de 15 secondes vous attend. Si vous l’aimez, débloquez la version complète.</p>
+            <p style="margin-top: 20px;">À très vite sur <a href="https://www.tunemyday.fr" target="_blank" style="color:#F5564E;text-decoration:none">TuneMyDay</a> !</p>
+        </div>
     </div>
-    <div style="background: linear-gradient(135deg, #FEC260 0%, #F5564E 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-      <h2 style="color: white; margin-bottom: 15px;">${title}</h2>
-      <a href="${fullMusicUrl}" style="display: inline-block; background-color: white; color: #F5564E; text-decoration: none; padding: 15px 30px; border-radius: 25px; font-weight: bold; font-size: 16px;">Écouter mon extrait gratuit</a>
-    </div>
-    <div style="text-align: center; color: #666; font-size: 14px;">
-      <p>Un extrait de 15 secondes vous attend. Si vous l’aimez, débloquez la version complète.</p>
-      <p style="margin-top: 20px;">À très vite sur TuneMyDay !</p>
-    </div>
-  </div>
 </body>
 </html>`
             });
