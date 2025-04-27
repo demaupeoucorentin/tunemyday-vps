@@ -4,6 +4,7 @@ const { Headers, Response, Request } = require('node-fetch');
 const { Resend } = require('resend');
 const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
+const timeout = require('connect-timeout')
 require('dotenv').config();
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -173,7 +174,7 @@ app.post('/generate-checkout', (req, res) => {
 
             let audioResults = null;
             let attempts = 0;
-            const maxAttempts = 60;
+            const maxAttempts = 120;
             while (!audioResults && attempts < maxAttempts) {
                 await new Promise(r => setTimeout(r, 1000));
                 const recRes = await fetch(
@@ -187,6 +188,7 @@ app.post('/generate-checkout', (req, res) => {
                 }
                 const { data: recData } = await recRes.json();
                 if (recData.status === 'PENDING') {
+                    console.log('Statut PENDING, attente avant nouvelle tentative (tentative nº', attempts + 1, ')');
                     attempts++;
                     continue;
                 }
@@ -281,11 +283,13 @@ app.post('/generate-checkout', (req, res) => {
 });
 
 app.post('/generate-music', (req, res) => {
+    req.setTimeout(0);
+    res.setTimeout(0);
     console.log('Requête /generate-music reçue');
     console.log('Corps de la requête :', req.body);
 
-    res.status(200).json({ message: 'Génération de la musique démarrée' });
-    console.log('Réponse envoyée au client, poursuite de l’appel à APIBox');
+    // res.status(200).json({ message: 'Génération de la musique démarrée' });
+    // console.log('Réponse envoyée au client, poursuite de l’appel à APIBox');
 
     (async () => {
         const { email, prompt, style, title, previewId } = req.body;
@@ -297,7 +301,7 @@ app.post('/generate-music', (req, res) => {
 
         try {
             const apiboxKey = process.env.APIBOX_API_KEY;
-            const callbackUrl = `${req.protocol}://${req.get('host')}/generate-checkout`;
+            const callbackUrl = "https://ippldffmjivhdwfgdubv.supabase.co/functions/v1/audio-callback";
             const payload = { prompt, style, title, customMode: true, instrumental: false, model: 'V4', callBackUrl: callbackUrl };
             console.log('Appel APIBox avec payload :', payload);
 
@@ -322,113 +326,11 @@ app.post('/generate-music', (req, res) => {
                 return;
             }
             console.log('taskId obtenu :', genData.taskId);
-
-            let audioResults = null;
-            let attempts = 0;
-            const maxAttempts = 60;
-            while (!audioResults && attempts < maxAttempts) {
-                await new Promise(r => setTimeout(r, 1000));
-
-                const recRes = await fetch(`https://apibox.erweima.ai/api/v1/generate/record-info?taskId=${genData.taskId}`, {
-                    method: 'GET',
-                    headers: { Authorization: `Bearer ${apiboxKey}` }
-                });
-
-                if (!recRes.ok) {
-                    console.log('Erreur récupération record-info, statut :', recRes.status);
-                    attempts++;
-                    continue;
-                }
-
-                const { data: recData } = await recRes.json();
-                if (recData.status === 'PENDING') {
-                    attempts++;
-                    continue;
-                }
-                if (recData.status === 'SUCCESS' && recData.response?.sunoData) {
-                    audioResults = recData.response.sunoData;
-                    console.log('Audio généré avec succès :', audioResults);
-                    break;
-                }
-                if (recData.status === 'ERROR') {
-                    console.log(`Attente avant tentative ${attempts + 1}`);
-                    console.log('Erreur dans recData pour taskId :', genData.taskId);
-                    break;
-                }
-            }
-
-            if (!audioResults) {
-                console.log('Aucun résultat audio après', maxAttempts, 'tentatives');
-                return;
-            }
-
-            console.log('Création du client Supabase');
-
-            const records = audioResults.map(item => ({
-                id: uuidv4(),
-                preview_id: previewId,
-                email,
-                task_id: genData.taskId,
-                parent_music_id: genData.parentMusicId,
-                param: genData.param,
-                response: genData.response,
-                status: genData.status,
-                type: genData.type,
-                operation_type: genData.operationType,
-                error_code: genData.errorCode ? genData.errorCode : 0,
-                error_message: genData.errorMessage ? genData.errorMessage : "",
-                audio_url: item.audioUrl,
-                stream_audio_url: item.streamAudioUrl,
-                image_url: item.imageUrl,
-                prompt: item.prompt,
-                model_name: item.modelName,
-                title: item.title,
-                tags: item.tags,
-                duration: Math.round(item.duration),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }));
-            console.log('Enregistrement des pistes générées en base, nombre de records :', records.length);
-
-            const { error: upsertError } = await supabase
-                .from('music_previews')
-                .insert(records);
-            if (upsertError) {
-                console.log('Erreur upsert Supabase :', upsertError);
-                return;
-            }
-            console.log('Insertion réussie en base de données');
-
-            console.log('Envoi de l’email avec le lien de l’extrait');
-            const fullMusicUrl = `https://www.tunemyday.fr/music/preview/${previewId}`;
-            await resend.emails.send({
-                from: 'TuneMyDay <noreply@tunemyday.fr>',
-                to: [email],
-                subject: '🎵 Votre extrait est prêt !',
-                html: `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Votre extrait musical est prêt !</title></head>
-<body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f6f9fc;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1E1E3F; margin-bottom: 10px;">Votre extrait est prêt ! 🎵</h1>
-            <p style="color: #666; font-size: 16px; line-height: 1.5;">Nous avons créé une chanson unique pour vous.</p>
-        </div>
-        <div style="background: linear-gradient(135deg, #FEC260 0%, #F5564E 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-            <h2 style="color: white; margin-bottom: 15px;">${title}</h2>
-            <a href="${fullMusicUrl}" style="display: inline-block; background-color: white; color: #F5564E; text-decoration: none; padding: 15px 30px; border-radius: 25px; font-weight: bold; font-size: 16px;">Écouter mon extrait gratuit</a>
-        </div>
-        <div style="text-align: center; color: #666; font-size: 14px;">
-            <p>Un extrait de 15 secondes vous attend. Si vous l’aimez, débloquez la version complète.</p>
-            <p style="margin-top: 20px;">À très vite sur <a href="https://www.tunemyday.fr" target="_blank" style="color:#F5564E;text-decoration:none">TuneMyDay</a> !</p>
-        </div>
-    </div>
-</body>
-</html>`
-            });
             console.log('Processus /generate-music terminé');
+            res.status(200).json({ message: 'Génération de la musique démarrée', taskId: genData.taskId });
         } catch (err) {
             console.log('Erreur inattendue dans /generate-music :', err);
+            res.status(500).json({ error: 'Erreur interne serveur' });
         }
     })();
 });
@@ -437,5 +339,6 @@ app.get('/', (req, res) => {
     res.send('API is running');
 });
 
-app.listen(process.env.PORT || 8545);
+const server = app.listen(process.env.PORT || 8545);
+server.timeout = 0;
 console.log(`Server is running on port ${process.env.PORT || 8545}`);
