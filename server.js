@@ -240,7 +240,7 @@ app.post('/generate-checkout', (req, res) => {
             console.log('Données insérées');
 
             console.log('Envoi du mail de la musique complète');
-            const fullMusicUrl = `${req.protocol}://${req.get('host')}/music/full/${generatedPreviewId}`;
+            const fullMusicUrl = `https://www.tunemyday.fr/music/full/${generatedPreviewId}`;
             await resend.emails.send({
                 from: 'TuneMyDay <noreply@tunemyday.fr>',
                 to: [email],
