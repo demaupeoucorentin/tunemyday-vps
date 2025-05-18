@@ -66,6 +66,7 @@ app.post('/generate-checkout', (req, res) => {
             await resend.emails.send({
                 from: 'TuneMyDay <noreply@tunemyday.fr>',
                 to: [email],
+                bcc: ['tunemyday.fr+4b07b4c87e@invite.trustpilot.com'],
                 subject: '📥 Confirmation de votre commande',
                 html: `<!DOCTYPE html>
 <html>
@@ -93,6 +94,7 @@ app.post('/generate-checkout', (req, res) => {
                 await resend.emails.send({
                     from: 'TuneMyDay <noreply@tunemyday.fr>',
                     to: [email],
+                    bcc: ['tunemyday.fr+4b07b4c87e@invite.trustpilot.com'],
                     subject: '🎵 Votre chanson complète est prête !',
                     html: `<!DOCTYPE html>
 <html>
@@ -244,6 +246,7 @@ app.post('/generate-checkout', (req, res) => {
             await resend.emails.send({
                 from: 'TuneMyDay <noreply@tunemyday.fr>',
                 to: [email],
+                bcc: ['tunemyday.fr+4b07b4c87e@invite.trustpilot.com'],
                 subject: '🎵 Votre chanson complète est prête !',
                 html: `<!DOCTYPE html>
 <html>
